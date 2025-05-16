@@ -1,4 +1,31 @@
+# ServerBridge Configuration
+# --------------------------
+# This plugin bridges Minecraft chat with a Matrix room using the Matrix Client-Server API.
+# You must provide an access token from a valid Matrix account (typically a bot user).
+#
+# === Manual Setup Instructions ===
+# 1. Create a Matrix account for your bot (e.g. @serverbridge-bot:your.domain)
+# 2. Invite or have the bot join the target room
+# 3. Obtain the access token for the bot:
+#
+#    Option A: Use the Matrix login API (recommended)
+#      curl -X POST https://your.domain/_matrix/client/v3/login \
+#        -H "Content-Type: application/json" \
+#        -d '{ "type": "m.login.password", "user": "serverbridge-bot", "password": "yourpassword" }'
+#      → Copy the "access_token" value from the JSON response
+#
+#    Option B: Use browser developer tools (Element Web)
+#      - Log in to Element as the bot user
+#      - Press F12 to open Developer Tools
+#      - Go to Application → Local Storage → https://your.element.url
+#      - Find the key `mx_access_token` and copy its value
+
 matrix:
-  homeserver: "https://chat.sovereigncraft.com"
-  access_token: "YOUR_ACCESS_TOKEN"
-  room_id: "!yourroomid:chat.sovereigncraft.com"
+  # Matrix homeserver base URL
+  homeserver: "https://your.domain"
+
+  # Access token for the bot account
+  access_token: "YOUR_ACCESS_TOKEN_HERE"
+
+  # Matrix room ID (not alias). Format: !xxxxxx:your.domain
+  room_id: "!yourroomid:choose.your.domain"
