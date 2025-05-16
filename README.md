@@ -18,7 +18,7 @@ ServerBridge enables Spigot/Paper servers to relay chat messages between Minecra
 
 ## Usage
 
-1. Add `serverbridge.sovereigncraft.com.jar` to your server’s `/plugins` folder.
+1. Add `serverbridge-.1.0.0.jar` to your server’s `/plugins` folder.
 2. Configure `config.yml` after first launch:
 
 ```yaml
