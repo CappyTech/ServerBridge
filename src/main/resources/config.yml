@@ -1,0 +1,4 @@
+matrix:
+  homeserver: "https://chat.sovereigncraft.com"
+  access_token: "YOUR_ACCESS_TOKEN"
+  room_id: "!yourroomid:chat.sovereigncraft.com"
