@@ -2,7 +2,7 @@
 
 Two-way Matrix chat bridge for Minecraft servers.
 
-**ServerBridge** allows Spigot/Paper Minecraft servers to send and receive chat messages from a specified Matrix room. It provides seamless integration between Minecraft chat and decentralized Matrix servers, making it perfect for community servers, moderation logging, or public chat relays.
+ServerBridge enables Spigot/Paper servers to relay chat messages between Minecraft and Matrix rooms in real time. It’s lightweight, server-focused, and ideal for community coordination, moderation, and cross-platform communication.
 
 ---
 
@@ -35,12 +35,12 @@ matrix:
 ## Example
 
 **Minecraft → Matrix**
-```
+```ardunio
 [Server] Alice: Hello Matrix!
 ```
 
 **Matrix → Minecraft**
-```
+```scss
 [Matrix] @bob:matrix.org: hey everyone!
 ```
 
