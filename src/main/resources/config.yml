@@ -27,5 +27,8 @@ matrix:
   # Access token for the bot account
   access_token: "YOUR_ACCESS_TOKEN_HERE"
 
+  # Full Matrix user ID of the bot (used to avoid message echo)
+  user_id: "@serverbridge-bot:chat.sovereigncraft.com"
+
   # Matrix room ID (not alias). Format: !xxxxxx:your.domain
   room_id: "!yourroomid:choose.your.domain"
