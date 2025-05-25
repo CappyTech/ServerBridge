@@ -1,5 +1,5 @@
 name: serverbridge
-version: 1.0.4
+version: 1.0.6
 main: com.sovereigncraft.serverbridge.ServerBridge
 api-version: 1.20
 description: Relays Minecraft chat to a Matrix room
@@ -8,4 +8,4 @@ author: CappyTech
 commands:
   chat:
     description: Matrix chat commands
-    usage: /chat <register>
+    usage: /chat register
