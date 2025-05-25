@@ -16,6 +16,8 @@ import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import java.util.logging.Logger;
+
 public class Register implements CommandExecutor {
 
     private final String homeserver;
@@ -23,16 +25,19 @@ public class Register implements CommandExecutor {
     private final File authFile;
     private final Gson gson = new Gson();
     private final String adminToken;
+    private final Logger logger;
 
-    public Register(String homeserver, String adminToken, MatrixUserTracker userTracker, File dataFolder) {
+    public Register(String homeserver, String adminToken, MatrixUserTracker userTracker, File dataFolder, Logger logger) {
         this.homeserver = homeserver;
         this.adminToken = adminToken;
         this.userTracker = userTracker;
         this.authFile = new File(dataFolder, "matrix_auth.json");
+        this.logger = logger;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        sender.sendMessage("§eDebug: command received."); // DEBUG
         if (!(sender instanceof Player)) {
             sender.sendMessage("§cOnly players can use this command.");
             return true;
@@ -46,7 +51,7 @@ public class Register implements CommandExecutor {
 
         new Thread(() -> {
             try {
-                MatrixAdminUserCreator adminCreator = new MatrixAdminUserCreator(homeserver, adminToken);
+                MatrixAdminUserCreator adminCreator = new MatrixAdminUserCreator(homeserver, adminToken, logger);
                 boolean created = adminCreator.createUser(username, password, player.getName());
 
                 if (created) {
