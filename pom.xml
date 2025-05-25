@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.sovereigncraft</groupId>
     <artifactId>ServerBridge</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.6</version>
     <name>serverbridge.sovereigncraft.com</name>
 
     <properties>
