@@ -4,6 +4,7 @@ import com.sovereigncraft.commands.Register;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.ChatColor;
 import java.util.logging.Logger;
 
 public class ChatCommandExecutor implements CommandExecutor {
@@ -19,7 +20,7 @@ public class ChatCommandExecutor implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || !args[0].equalsIgnoreCase("register")) {
-            sender.sendMessage("§cUsage: /chat register");
+            sender.sendMessage(ChatColor.RED + "Usage: /chat register");
             return true;
         }
 

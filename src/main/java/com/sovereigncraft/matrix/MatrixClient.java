@@ -4,11 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
@@ -17,7 +13,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+
+import com.google.gson.*;
 
 public class MatrixClient {
     private final String homeserver;
@@ -29,6 +29,9 @@ public class MatrixClient {
     private final File tokenFile;
     private String syncToken;
     private final Map<String, Integer> powerLevels = new HashMap<>();
+    private Timer timer;
+    private final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private final Gson gson = new Gson();
 
     public MatrixClient(ConfigurationSection config, Logger logger, JavaPlugin plugin) {
         this.homeserver = config.getString("homeserver");
@@ -42,16 +45,14 @@ public class MatrixClient {
     }
 
     public void sendMessage(String message) {
-        new Thread(() -> {
+        executor.submit(() -> {
             try {
                 String txnId = String.valueOf(System.currentTimeMillis());
                 String endpoint = homeserver + "/_matrix/client/v3/rooms/" + roomId + "/send/m.room.message/" + txnId;
 
-                String escapedMessage = message.replace("\"", "\\\"");
-                String json = "{"
-                        + "\"msgtype\":\"m.text\","
-                        + "\"body\":\"" + escapedMessage + "\""
-                        + "}";
+                JsonObject payload = new JsonObject();
+                payload.addProperty("msgtype", "m.text");
+                payload.addProperty("body", message);
 
                 URL url = new URL(endpoint);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -61,7 +62,7 @@ public class MatrixClient {
                 conn.setDoOutput(true);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    os.write(json.getBytes());
+                    os.write(gson.toJson(payload).getBytes());
                 }
 
                 int code = conn.getResponseCode();
@@ -73,17 +74,24 @@ public class MatrixClient {
             } catch (Exception e) {
                 logger.severe("Matrix sendMessage failed: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     public void startPollingChatToMinecraft() {
-        Timer timer = new Timer(true);
+        timer = new Timer(true);
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 pollMatrixMessages();
             }
         }, 2000, 5000);
+    }
+
+    public void shutdown() {
+        if (timer != null) {
+            timer.cancel();
+        }
+        executor.shutdownNow();
     }
 
     private void pollMatrixMessages() {
@@ -96,6 +104,13 @@ public class MatrixClient {
             HttpURLConnection conn = (HttpURLConnection) new URL(endpoint.toString()).openConnection();
             conn.setRequestProperty("Authorization", "Bearer " + accessToken);
 
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                logger.warning("Matrix sync poll failed with HTTP code: " + responseCode);
+                conn.disconnect();
+                return;
+            }
+
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             StringBuilder response = new StringBuilder();
             String line;
@@ -103,11 +118,14 @@ public class MatrixClient {
                 response.append(line);
             }
             reader.close();
+            conn.disconnect();
 
             String json = response.toString();
-            syncToken = extractNextBatch(json);
-            updatePowerLevels(json);
-            handleRoomMessages(json);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+            syncToken = root.has("next_batch") ? root.get("next_batch").getAsString() : syncToken;
+            updatePowerLevels(root);
+            handleRoomMessages(root);
 
             if (syncToken != null) {
                 try {
@@ -122,69 +140,70 @@ public class MatrixClient {
         }
     }
 
-    private void updatePowerLevels(String json) {
-        String plBlock = extractBetween(json, "\"power_levels\":{", "},\"events\"");
-        if (plBlock == null) return;
-
-        String[] entries = plBlock.split(",");
-        for (String entry : entries) {
-            if (entry.contains("\":")) {
-                String[] kv = entry.split("\":");
-                if (kv.length == 2) {
-                    String user = kv[0].replace("\"", "").trim();
-                    try {
-                        int level = Integer.parseInt(kv[1].trim());
-                        powerLevels.put(user, level);
-                    } catch (NumberFormatException ignored) {}
+    private void updatePowerLevels(JsonObject root) {
+        try {
+            if (!root.has("rooms")) return;
+            JsonObject rooms = root.getAsJsonObject("rooms");
+            if (!rooms.has("join")) return;
+            JsonObject join = rooms.getAsJsonObject("join");
+            if (!join.has(roomId)) return;
+            JsonObject room = join.getAsJsonObject(roomId);
+            if (!room.has("state")) return;
+            JsonObject state = room.getAsJsonObject("state");
+            if (!state.has("events")) return;
+            for (JsonElement eventElem : state.getAsJsonArray("events")) {
+                JsonObject event = eventElem.getAsJsonObject();
+                if (event.has("type") && event.get("type").getAsString().equals("m.room.power_levels")) {
+                    if (event.has("content")) {
+                        JsonObject content = event.getAsJsonObject("content");
+                        if (content.has("users")) {
+                            JsonObject users = content.getAsJsonObject("users");
+                            for (Map.Entry<String, JsonElement> entry : users.entrySet()) {
+                                powerLevels.put(entry.getKey(), entry.getValue().getAsInt());
+                            }
+                        }
+                    }
                 }
             }
+        } catch (Exception e) {
+            logger.warning("Failed to parse power levels: " + e.getMessage());
         }
     }
 
-    private void handleRoomMessages(String json) {
+    private void handleRoomMessages(JsonObject root) {
         try {
-            if (!json.contains("\"rooms\"")) return;
+            if (!root.has("rooms")) return;
+            JsonObject rooms = root.getAsJsonObject("rooms");
+            if (!rooms.has("join")) return;
+            JsonObject join = rooms.getAsJsonObject("join");
+            if (!join.has(roomId)) return;
+            JsonObject room = join.getAsJsonObject(roomId);
+            if (!room.has("timeline")) return;
+            JsonObject timeline = room.getAsJsonObject("timeline");
+            if (!timeline.has("events")) return;
+            for (JsonElement eventElem : timeline.getAsJsonArray("events")) {
+                JsonObject event = eventElem.getAsJsonObject();
+                if (!event.has("type") || !event.get("type").getAsString().equals("m.room.message")) continue;
+                if (!event.has("content")) continue;
+                JsonObject content = event.getAsJsonObject("content");
+                if (!content.has("body")) continue;
+                String sender = event.has("sender") ? event.get("sender").getAsString() : null;
+                String body = content.get("body").getAsString();
+                if (sender == null || sender.equals(userId)) continue;
 
-            String[] parts = json.split("\"type\":\"m.room.message\"");
-            for (String part : parts) {
-                if (part.contains("\"body\":\"")) {
-                    String sender = extractBetween(part, "\"sender\":\"", "\"");
-                    String body = extractBetween(part, "\"body\":\"", "\"");
+                int level = powerLevels.getOrDefault(sender, 0);
+                String role = "§7User";
+                if (level >= 100) role = "§eAdmin";
+                else if (level >= 50) role = "§9Mod";
 
-                    if (body == null || sender == null) continue;
-                    if (sender.equals(userId)) continue;
+                String prefix = String.format("§8[§7Matrix §8- %s§8]", role);
+                String msg = String.format("%s §7%s§f: %s", prefix, sender, body);
 
-                    int level = powerLevels.getOrDefault(sender, 0);
-                    String role = "§7User";
-                    if (level >= 100) role = "§eAdmin";
-                    else if (level >= 50) role = "§9Mod";
-
-                    String prefix = String.format("§8[§7Matrix §8- %s§8]", role);
-                    String msg = String.format("%s §7%s§f: %s", prefix, sender, body);
-
-                    Bukkit.getScheduler().runTask(plugin, () -> Bukkit.broadcastMessage(msg));
-                }
+                Bukkit.getScheduler().runTask(plugin, () -> Bukkit.broadcastMessage(msg));
             }
         } catch (Exception e) {
             logger.warning("Matrix message parse failed: " + e.getMessage());
         }
-    }
-
-    private String extractNextBatch(String json) {
-        int idx = json.indexOf("\"next_batch\":\"");
-        if (idx == -1) return syncToken;
-        int start = idx + 14;
-        int end = json.indexOf("\"", start);
-        return json.substring(start, end);
-    }
-
-    private String extractBetween(String text, String start, String end) {
-        int s = text.indexOf(start);
-        if (s == -1) return null;
-        s += start.length();
-        int e = text.indexOf(end, s);
-        if (e == -1) return null;
-        return text.substring(s, e);
     }
 
     private String readSyncTokenFromFile() {

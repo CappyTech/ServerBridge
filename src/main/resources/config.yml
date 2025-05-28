@@ -21,14 +21,14 @@
 #      - Find the key `mx_access_token` and copy its value
 
 matrix:
-  # Matrix homeserver base URL
+  # Matrix homeserver base URL (must include protocol, no trailing slash)
   homeserver: "https://your.domain"
 
-  # Access token for the bot account
+  # Access token for the bot account (keep this secret!)
   access_token: "YOUR_ACCESS_TOKEN_HERE"
 
   # Full Matrix user ID of the bot (used to avoid message echo)
-  user_id: "@serverbridge-bot:chat.sovereigncraft.com"
+  user_id: "@serverbridge-bot:your.domain"
 
   # Matrix room ID (not alias). Format: !xxxxxx:your.domain
-  room_id: "!yourroomid:choose.your.domain"
+  room_id: "!yourroomid:your.domain"

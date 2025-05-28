@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -15,49 +16,54 @@ import com.google.gson.reflect.TypeToken;
 public class MatrixUserTracker {
     private final File dataFile;
     private final Gson gson = new Gson();
-    private Map<UUID, String> userMap = new HashMap<>();
+    private Map<String, String> userMap = new HashMap<>();
+    private final Logger logger;
 
-    public MatrixUserTracker(File pluginFolder) {
+    public MatrixUserTracker(File pluginFolder, Logger logger) {
         this.dataFile = new File(pluginFolder, "matrix_users.json");
+        this.logger = logger;
         load();
     }
 
-    private void load() {
+    private synchronized void load() {
         if (!dataFile.exists()) return;
         try (FileReader reader = new FileReader(dataFile)) {
-            userMap = gson.fromJson(reader, new TypeToken<Map<UUID, String>>(){}.getType());
+            Map<String, String> loaded = gson.fromJson(reader, new TypeToken<Map<String, String>>(){}.getType());
+            if (loaded != null) {
+                userMap = loaded;
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warning("[MatrixUserTracker] Failed to load user map: " + e.getMessage());
         }
     }
 
-    private void save() {
+    private synchronized void save() {
         try (FileWriter writer = new FileWriter(dataFile)) {
             gson.toJson(userMap, writer);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warning("[MatrixUserTracker] Failed to save user map: " + e.getMessage());
         }
     }
 
-    public void record(Player player) {
-        UUID uuid = player.getUniqueId();
+    public synchronized void record(Player player) {
+        String uuidStr = player.getUniqueId().toString();
         String name = player.getName();
-        if (!name.equals(userMap.get(uuid))) {
-            userMap.put(uuid, name);
+        if (!name.equals(userMap.get(uuidStr))) {
+            userMap.put(uuidStr, name);
             save();
         }
     }
 
-    public String getMatrixUsername(UUID uuid) {
-        return userMap.get(uuid);
+    public synchronized String getMatrixUsername(UUID uuid) {
+        return userMap.get(uuid.toString());
     }
 
-    public boolean hasRecord(UUID uuid) {
-        return userMap.containsKey(uuid);
+    public synchronized boolean hasRecord(UUID uuid) {
+        return userMap.containsKey(uuid.toString());
     }
 
-    public void remove(UUID uuid) {
-        if (userMap.remove(uuid) != null) {
+    public synchronized void remove(UUID uuid) {
+        if (userMap.remove(uuid.toString()) != null) {
             save();
         }
     }

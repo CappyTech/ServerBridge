@@ -2,6 +2,7 @@ package com.sovereigncraft.commands;
 
 import com.sovereigncraft.matrix.MatrixUserTracker;
 import com.sovereigncraft.matrix.MatrixAdminUserCreator;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -37,7 +38,6 @@ public class Register implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        sender.sendMessage("§eDebug: command received."); // DEBUG
         if (!(sender instanceof Player)) {
             sender.sendMessage("§cOnly players can use this command.");
             return true;
@@ -54,20 +54,28 @@ public class Register implements CommandExecutor {
                 MatrixAdminUserCreator adminCreator = new MatrixAdminUserCreator(homeserver, adminToken, logger);
                 boolean created = adminCreator.createUser(username, password, player.getName());
 
-                if (created) {
-                    saveLoginInfo(username, password);
-                    player.sendMessage("§aYou have been signed up to §b" + homeserver);
-                    player.sendMessage("§7Here is your login information:");
-                    player.sendMessage("§eUsername: §f" + username);
-                    player.sendMessage("§ePassword: §f" + password);
-                    player.sendMessage("§6Login here: §b" + homeserver);
+                Bukkit.getScheduler().runTask(
+                    Bukkit.getPluginManager().getPlugin("ServerBridge"),
+                    () -> {
+                        if (created) {
+                            saveLoginInfo(username, password);
+                            player.sendMessage("§aYou have been signed up to §b" + homeserver);
+                            player.sendMessage("§7Here is your login information:");
+                            player.sendMessage("§eUsername: §f" + username);
+                            player.sendMessage("§ePassword: §f" + password);
+                            player.sendMessage("§6Login here: §b" + homeserver);
 
-                    userTracker.record(player);
-                } else {
-                    player.sendMessage("§c❌ Failed to create Matrix user.");
-                }
+                            userTracker.record(player);
+                        } else {
+                            player.sendMessage("§c❌ Failed to create Matrix user.");
+                        }
+                    }
+                );
             } catch (Exception e) {
-                player.sendMessage("§c❌ Error registering Matrix account: " + e.getMessage());
+                Bukkit.getScheduler().runTask(
+                    Bukkit.getPluginManager().getPlugin("ServerBridge"),
+                    () -> player.sendMessage("§c❌ Error registering Matrix account: " + e.getMessage())
+                );
             }
         }).start();
 
@@ -101,7 +109,7 @@ public class Register implements CommandExecutor {
                 gson.toJson(map, writer);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warning("[Register] Failed to save login info: " + e.getMessage());
         }
     }
 }

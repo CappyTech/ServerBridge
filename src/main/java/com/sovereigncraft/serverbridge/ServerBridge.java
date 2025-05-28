@@ -21,17 +21,36 @@ public class ServerBridge extends JavaPlugin implements Listener {
         String homeserver = getConfig().getString("matrix.homeserver");
         String adminToken = getConfig().getString("matrix.admin_token");
 
-        userTracker = new MatrixUserTracker(getDataFolder());
+        if (homeserver == null || adminToken == null) {
+            getLogger().severe("Matrix homeserver or admin_token missing in config! Disabling plugin.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        userTracker = new MatrixUserTracker(getDataFolder(), this.getLogger());
 
         matrixClient = new MatrixClient(getConfig().getConfigurationSection("matrix"), this.getLogger(), this);
-        matrixClient.startPollingChatToMinecraft();
+        try {
+            matrixClient.startPollingChatToMinecraft();
+        } catch (Exception e) {
+            getLogger().severe("Failed to start Matrix client: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
-        getCommand("chat").setExecutor(new ChatCommandExecutor(this, homeserver, adminToken));
+        if (getCommand("chat") == null) {
+            getLogger().severe("Command 'chat' not defined in plugin.yml!");
+        } else {
+            getCommand("chat").setExecutor(new ChatCommandExecutor(this, homeserver, adminToken));
+        }
         getLogger().info("ServerBridge enabled!");
     }
 
     @Override
     public void onDisable() {
+        if (matrixClient != null) {
+            //matrixClient.shutdown(); // If you have a shutdown method
+        }
         getLogger().info("ServerBridge disabled.");
     }
 

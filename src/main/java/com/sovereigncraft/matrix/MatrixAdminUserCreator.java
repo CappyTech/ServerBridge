@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
 import java.util.logging.Logger;
+import com.google.gson.JsonObject;
 
 public class MatrixAdminUserCreator {
 
@@ -29,17 +30,20 @@ public class MatrixAdminUserCreator {
      */
     public boolean createUser(String username, String password, String displayName) {
         try {
-            String userId = "@" + username + ":" + homeserver.replace("https://", "").replace("http://", "");
+            // Normalize homeserver for userId (strip protocol and trailing slash)
+            String domain = homeserver.replaceFirst("^https?://", "").replaceAll("/$", "");
+            String userId = "@" + username + ":" + domain;
             String encodedUserId = URLEncoder.encode(userId, StandardCharsets.UTF_8.toString());
 
-            String urlStr = homeserver + "/_synapse/admin/v2/users/" + encodedUserId;
+            String urlStr = homeserver.replaceAll("/$", "") + "/_synapse/admin/v2/users/" + encodedUserId;
             logger.info("[DEBUG] Creating Matrix user with URL: " + urlStr);
 
-            String jsonPayload = String.format(
-                "{\"password\": \"%s\", \"displayname\": \"%s\"}",
-                password, displayName
-            );
-            logger.info("[DEBUG] JSON Payload: " + jsonPayload);
+            // Use Gson for safe JSON construction
+            JsonObject payload = new JsonObject();
+            payload.addProperty("password", password);
+            payload.addProperty("displayname", displayName);
+
+            logger.info("[DEBUG] Sending Matrix user creation request (payload hidden for security)");
 
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -50,7 +54,7 @@ public class MatrixAdminUserCreator {
             conn.setDoOutput(true);
 
             try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
+                byte[] input = payload.toString().getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
                 os.flush();
             }
@@ -70,8 +74,7 @@ public class MatrixAdminUserCreator {
 
             return (responseCode == 200 || responseCode == 201);
         } catch (Exception e) {
-            logger.warning("[ERROR] Exception during Matrix user creation:");
-            e.printStackTrace();
+            logger.log(java.util.logging.Level.WARNING, "[ERROR] Exception during Matrix user creation", e);
             return false;
         }
     }

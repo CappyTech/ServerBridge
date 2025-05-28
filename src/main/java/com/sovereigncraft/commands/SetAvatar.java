@@ -1,5 +1,6 @@
 package com.sovereigncraft.commands;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -9,6 +10,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class SetAvatar implements CommandExecutor {
 
@@ -54,29 +58,44 @@ public class SetAvatar implements CommandExecutor {
                 String response = new String(responseStream.readAllBytes());
                 responseStream.close();
 
-                String contentUri = response.split("\"")[3]; // crude JSON parsing
+                // Use Gson for safe JSON parsing
+                JsonObject jsonResponse = JsonParser.parseString(response).getAsJsonObject();
+                String contentUri = jsonResponse.get("content_uri").getAsString();
 
                 // Set avatar using returned mxc:// URI
-                URL avatarUrl = new URL(homeserver + "/_matrix/client/v3/profile/@" + username + ":" + new URL(homeserver).getHost() + "/avatar_url");
+                String matrixUserId = "@" + username + ":" + new URL(homeserver).getHost();
+                URL avatarUrl = new URL(homeserver + "/_matrix/client/v3/profile/" + matrixUserId + "/avatar_url");
                 HttpURLConnection avatarConn = (HttpURLConnection) avatarUrl.openConnection();
                 avatarConn.setRequestMethod("PUT");
                 avatarConn.setRequestProperty("Authorization", "Bearer " + accessToken);
                 avatarConn.setRequestProperty("Content-Type", "application/json");
                 avatarConn.setDoOutput(true);
 
-                String json = "{\"avatar_url\": \"" + contentUri + "\"}";
+                JsonObject avatarPayload = new JsonObject();
+                avatarPayload.addProperty("avatar_url", contentUri);
+
                 try (OutputStream os = avatarConn.getOutputStream()) {
-                    os.write(json.getBytes());
+                    os.write(avatarPayload.toString().getBytes());
                 }
 
-                if (avatarConn.getResponseCode() == 200) {
-                    player.sendMessage("§a✅ Matrix avatar updated to your Minecraft skin.");
-                } else {
-                    player.sendMessage("§c❌ Failed to update Matrix avatar. HTTP " + avatarConn.getResponseCode());
-                }
+                int avatarResponseCode = avatarConn.getResponseCode();
+
+                Bukkit.getScheduler().runTask(
+                    Bukkit.getPluginManager().getPlugin("ServerBridge"),
+                    () -> {
+                        if (avatarResponseCode == 200) {
+                            player.sendMessage("§a✅ Matrix avatar updated to your Minecraft skin.");
+                        } else {
+                            player.sendMessage("§c❌ Failed to update Matrix avatar. HTTP " + avatarResponseCode);
+                        }
+                    }
+                );
 
             } catch (Exception e) {
-                player.sendMessage("§c❌ Error setting avatar: " + e.getMessage());
+                Bukkit.getScheduler().runTask(
+                    Bukkit.getPluginManager().getPlugin("ServerBridge"),
+                    () -> player.sendMessage("§c❌ Error setting avatar: " + e.getMessage())
+                );
             }
         }).start();
 
