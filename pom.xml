@@ -11,6 +11,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Set your GitHub repo here for distributionManagement -->
+        <github.repo>CappyTech/ServerBridge</github.repo>
     </properties>
 
     <repositories>
@@ -41,5 +43,4 @@
             <url>https://maven.pkg.github.com/${github.repo}</url>
         </repository>
     </distributionManagement>
-
 </project>
