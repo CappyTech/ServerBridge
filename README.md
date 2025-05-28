@@ -11,21 +11,22 @@ ServerBridge enables Spigot/Paper servers to relay chat messages between Minecra
 - Relay Minecraft player chat to a Matrix room
 - Broadcast Matrix messages into Minecraft chat
 - Configurable Matrix homeserver, room, and token
-- Lightweight and dependency-free (no JSON library required)
+- Lightweight and minimal dependencies (uses Gson for JSON)
 - Ideal for community coordination and moderation
 
 ---
 
 ## Usage
 
-1. Add `ServerBridge-.1.0.2.jar` to your server’s `/plugins` folder.
+1. Add `ServerBridge-1.0.7.jar` to your server’s `/plugins` folder.
 2. Configure `config.yml` after first launch:
 
 ```yaml
 matrix:
-  homeserver: "https://chat.sovereigncraft.com"
-  access_token: "YOUR_ACCESS_TOKEN"
-  room_id: "!yourroomid:chat.sovereigncraft.com"
+  homeserver: "https://your.domain"
+  access_token: "YOUR_ACCESS_TOKEN_HERE"
+  user_id: "@serverbridge-bot:your.domain"
+  room_id: "!yourroomid:your.domain"
 ```
 
 3. Chat messages in Minecraft will appear in your Matrix room, and vice versa.
@@ -35,12 +36,12 @@ matrix:
 ## Example
 
 **Minecraft → Matrix**
-```ardunio
+```
 [Server] Alice: Hello Matrix!
 ```
 
 **Matrix → Minecraft**
-```scss
+```
 [Matrix] @bob:matrix.org: hey everyone!
 ```
 
@@ -48,7 +49,7 @@ matrix:
 
 ## Plugin Info
 
-- Plugin Name: `serverbridge.sovereigncraft.com`
+- Plugin Name: `serverbridge`
 - Main Class: `com.sovereigncraft.serverbridge.ServerBridge`
 - Java: 17+
 - Minecraft: 1.20+ (Spigot/Paper)
